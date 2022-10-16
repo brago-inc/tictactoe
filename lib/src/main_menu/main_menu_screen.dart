@@ -8,9 +8,28 @@ import 'package:tictactoe/src/style/delayed_appear.dart';
 import 'package:tictactoe/src/style/palette.dart';
 import 'package:tictactoe/src/style/responsive_screen.dart';
 import 'package:tictactoe/src/style/rough/button.dart';
+import 'package:window_manager/window_manager.dart';
 
-class MainMenuScreen extends StatelessWidget {
+class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> with WindowListener {
+
+  @override
+  void initState() {
+    windowManager.addListener(this);
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +76,7 @@ class MainMenuScreen extends StatelessWidget {
                 child: DelayedAppear(
                   ms: 600,
                   child: RoughButton(
-                    onTap: () => gamesServicesController.showAchievements(),
+                    onTap: gamesServicesController.showAchievements,
                     child: const Text('Achievements'),
                   ),
                 ),
@@ -68,7 +87,7 @@ class MainMenuScreen extends StatelessWidget {
                 child: DelayedAppear(
                   ms: 400,
                   child: RoughButton(
-                    onTap: () => gamesServicesController.showLeaderboard(),
+                    onTap: gamesServicesController.showLeaderboard,
                     child: const Text('Leaderboard'),
                   ),
                 ),
@@ -87,7 +106,7 @@ class MainMenuScreen extends StatelessWidget {
                 valueListenable: settingsController.muted,
                 builder: (context, muted, child) {
                   return IconButton(
-                    onPressed: () => settingsController.toggleMuted(),
+                    onPressed: settingsController.toggleMuted,
                     icon: Icon(
                       muted ? Icons.volume_off : Icons.volume_up,
                       color: palette.trueWhite,
@@ -119,5 +138,36 @@ class MainMenuScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  @override
+  Future<void> onWindowClose() async {
+    final _isPreventClose = await windowManager.isPreventClose();
+    if (_isPreventClose) {
+      await showDialog(
+        context: context,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('Confirm close'),
+            content: const Text('Are you sure you want to close this window?'),
+            actions: [
+              TextButton(
+                child: const Text('Yes'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  windowManager.destroy();
+                },
+              ),
+              TextButton(
+                child: const Text('No'),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 }
