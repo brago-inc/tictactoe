@@ -1,19 +1,13 @@
-// Copyright 2022, the Flutter project authors. Please see the AUTHORS file
-// for details. All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
 import 'dart:collection';
 import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart' hide Logger;
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
+import 'package:tictactoe/src/audio/songs.dart';
+import 'package:tictactoe/src/audio/sounds.dart';
+import 'package:tictactoe/src/settings/settings.dart';
 
-import '../settings/settings.dart';
-import 'songs.dart';
-import 'sounds.dart';
-
-/// Allows playing music and sound. A facade to `package:audioplayers`.
 class AudioController {
   static final _log = Logger('AudioController');
 
@@ -21,6 +15,10 @@ class AudioController {
 
   /// This is a list of [AudioPlayer] instances which are rotated to play
   /// sound effects.
+  ///
+  /// Normally, we would just call [AudioCache.play] and let it procure its
+  /// own [AudioPlayer] every time. But this seems to lead to errors and
+  /// bad performance on iOS devices.
   final List<AudioPlayer> _sfxPlayers;
 
   int _currentSfxPlayer = 0;
@@ -41,54 +39,46 @@ class AudioController {
   /// of [_sfxPlayers] to learn why this is the case.
   ///
   /// Background music does not count into the [polyphony] limit. Music will
-  /// never be overridden by sound effects because that would be silly.
+  /// never be overridden by sound effects.
   AudioController({int polyphony = 2})
       : assert(polyphony >= 1),
         _musicPlayer = AudioPlayer(playerId: 'musicPlayer'),
         _sfxPlayers = Iterable.generate(
-                polyphony, (i) => AudioPlayer(playerId: 'sfxPlayer#$i'))
-            .toList(growable: false),
-        _playlist = Queue.of(List<Song>.of(songs)..shuffle()) {
+            polyphony,
+            (i) => AudioPlayer(
+                playerId: 'sfxPlayer#$i')).toList(growable: false),
+        _playlist = Queue.from(List.of(songs)..shuffle()) {
     _musicPlayer.onPlayerComplete.listen(_changeSong);
   }
 
-  /// Enables the [AudioController] to listen to [AppLifecycleState] events,
-  /// and therefore do things like stopping playback when the game
-  /// goes into the background.
   void attachLifecycleNotifier(
       ValueNotifier<AppLifecycleState> lifecycleNotifier) {
-    _lifecycleNotifier?.removeListener(_handleAppLifecycle);
-
-    lifecycleNotifier.addListener(_handleAppLifecycle);
+    if (_lifecycleNotifier != null) {
+      _lifecycleNotifier!.removeListener(_handleAppLifecycle);
+    }
     _lifecycleNotifier = lifecycleNotifier;
+    _lifecycleNotifier?.addListener(_handleAppLifecycle);
   }
 
-  /// Enables the [AudioController] to track changes to settings.
-  /// Namely, when any of [SettingsController.muted],
-  /// [SettingsController.musicOn] or [SettingsController.soundsOn] changes,
-  /// the audio controller will act accordingly.
   void attachSettings(SettingsController settingsController) {
     if (_settings == settingsController) {
       // Already attached to this instance. Nothing to do.
       return;
     }
 
-    // Remove handlers from the old settings controller if present
-    final oldSettings = _settings;
-    if (oldSettings != null) {
-      oldSettings.muted.removeListener(_mutedHandler);
-      oldSettings.musicOn.removeListener(_musicOnHandler);
-      oldSettings.soundsOn.removeListener(_soundsOnHandler);
+    if (_settings != null) {
+      _settings!.muted.removeListener(_mutedHandler);
+      _settings!.musicOn.removeListener(_musicOnHandler);
+      _settings!.soundsOn.removeListener(_soundsOnHandler);
     }
 
     _settings = settingsController;
 
-    // Add handlers to the new settings controller
-    settingsController.muted.addListener(_mutedHandler);
-    settingsController.musicOn.addListener(_musicOnHandler);
-    settingsController.soundsOn.addListener(_soundsOnHandler);
+    _settings!.muted.addListener(_mutedHandler);
+    _settings!.musicOn.addListener(_musicOnHandler);
+    _settings!.soundsOn.addListener(_soundsOnHandler);
 
-    if (!settingsController.muted.value && settingsController.musicOn.value) {
+    if (!_settings!.muted.value && _settings!.musicOn.value) {
       _startMusic();
     }
   }
@@ -102,23 +92,14 @@ class AudioController {
     }
   }
 
-  /// Preloads all sound effects.
-  Future<void> initialize() async {
+  void initialize() async {
     _log.info('Preloading sound effects');
-    // This assumes there is only a limited number of sound effects in the game.
-    // If there are hundreds of long sound effect files, it's better
-    // to be more selective when preloading.
     await AudioCache.instance.loadAll(SfxType.values
         .expand(soundTypeToFilename)
         .map((path) => 'sfx/$path')
         .toList());
   }
 
-  /// Plays a single sound effect, defined by [type].
-  ///
-  /// The controller will ignore this call when the attached settings'
-  /// [SettingsController.muted] is `true` or if its
-  /// [SettingsController.soundsOn] is `false`.
   void playSfx(SfxType type) {
     final muted = _settings?.muted.value ?? true;
     if (muted) {
@@ -197,7 +178,7 @@ class AudioController {
     await _musicPlayer.play(AssetSource('music/${_playlist.first.filename}'));
   }
 
-  Future<void> _resumeMusic() async {
+  void _resumeMusic() async {
     _log.info('Resuming music');
     switch (_musicPlayer.state) {
       case PlayerState.paused:

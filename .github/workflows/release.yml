@@ -277,7 +277,7 @@ jobs:
 
       # Package the build.
       - name: Compress build for Windows
-        run: compress-archive -Path * -DestinationPath ${env:GITHUB_WORKSPACE}\flutter_boilerplate_windows.zip
+        run: compress-archive -Path * -DestinationPath ${env:GITHUB_WORKSPACE}\tictactoe_windows.zip
         working-directory: build\windows\runner\Release
 
       - uses: actions/upload-artifact@v3
@@ -312,7 +312,7 @@ jobs:
 
       # Package the build.
       - name: Compress build for Linux
-        run: tar czf $GITHUB_WORKSPACE/flutter_boilerplate_linux.tar.gz *
+        run: tar czf $GITHUB_WORKSPACE/tictactoe_linux.tar.gz *
         working-directory: build/linux/x64/release/bundle
 
       - uses: actions/upload-artifact@v3
@@ -342,7 +342,7 @@ jobs:
 
       # Package the build.
       - name: Compress build for macOS
-        run: ditto -c -k --sequesterRsrc --keepParent flutter_games_boilerplate.app $GITHUB_WORKSPACE/flutter_boilerplate_macos.zip
+        run: ditto -c -k --sequesterRsrc --keepParent tictactoe.app $GITHUB_WORKSPACE/tictactoe_macos.zip
         working-directory: build/macos/Build/Products/Release
 
       - uses: actions/upload-artifact@v3

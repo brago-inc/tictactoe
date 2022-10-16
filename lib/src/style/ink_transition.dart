@@ -1,14 +1,12 @@
-// Copyright 2022, the Flutter project authors. Please see the AUTHORS file
-// for details. All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
+import 'package:tictactoe/src/style/sprite.dart';
 
-CustomTransitionPage<T> buildMyTransition<T>({
+CustomTransitionPage<T> buildTransition<T>({
   required Widget child,
   required Color color,
+  bool flipHorizontally = false,
   String? name,
   Object? arguments,
   String? restorationId,
@@ -16,10 +14,12 @@ CustomTransitionPage<T> buildMyTransition<T>({
 }) {
   return CustomTransitionPage<T>(
     child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return _MyReveal(
+    transitionsBuilder: (BuildContext context, Animation<double> animation,
+        Animation<double> secondaryAnimation, Widget child) {
+      return _InkReveal(
         animation: animation,
         color: color,
+        flipHorizontally: flipHorizontally,
         child: child,
       );
     },
@@ -31,29 +31,31 @@ CustomTransitionPage<T> buildMyTransition<T>({
   );
 }
 
-class _MyReveal extends StatefulWidget {
+class _InkReveal extends StatefulWidget {
   final Widget child;
 
   final Animation<double> animation;
 
   final Color color;
 
-  const _MyReveal({
+  final bool flipHorizontally;
+
+  const _InkReveal({
     required this.child,
     required this.animation,
     required this.color,
-  });
+    this.flipHorizontally = false,
+    Key? key,
+  }) : super(key: key);
 
   @override
-  State<_MyReveal> createState() => _MyRevealState();
+  State<_InkReveal> createState() => _InkRevealState();
 }
 
-class _MyRevealState extends State<_MyReveal> {
+class _InkRevealState extends State<_InkReveal> {
   static final _log = Logger('_InkRevealState');
 
   bool _finished = false;
-
-  final _tween = Tween(begin: const Offset(0, -1), end: Offset.zero);
 
   @override
   void initState() {
@@ -63,7 +65,7 @@ class _MyRevealState extends State<_MyReveal> {
   }
 
   @override
-  void didUpdateWidget(covariant _MyReveal oldWidget) {
+  void didUpdateWidget(covariant _InkReveal oldWidget) {
     if (oldWidget.animation != widget.animation) {
       oldWidget.animation.removeStatusListener(_statusListener);
       widget.animation.addStatusListener(_statusListener);
@@ -82,17 +84,14 @@ class _MyRevealState extends State<_MyReveal> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        SlideTransition(
-          position: _tween.animate(
-            CurvedAnimation(
-              parent: widget.animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeOutCubic,
-            ),
-          ),
-          child: Container(
-            color: widget.color,
-          ),
+        AnimatedSprite(
+          image: const AssetImage('assets/images/scribble_sprites.png'),
+          frameWidth: 250,
+          frameHeight: 541,
+          frameCount: 12,
+          animation: widget.animation,
+          color: widget.color,
+          flipHorizontally: widget.flipHorizontally,
         ),
         AnimatedOpacity(
           opacity: _finished ? 1 : 0,
